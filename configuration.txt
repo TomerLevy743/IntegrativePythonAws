@@ -1,0 +1,9 @@
+instances
+key-name:tomer_keys2
+security-group:sg-051fef9db3163e627
+
+s3
+security-group:sg-051fef9db3163e627
+
+
+route53
