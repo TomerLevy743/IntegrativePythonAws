@@ -1,96 +1,260 @@
+import time
+
 import boto3
-import datetime
+import keyboard
+
 import config_importer
 
+state_running="running"
+state_paused="paused"
 
-#todo: add function to request for input (AMI and instance type)
-def create_instance(ec2):
-    file_path = ""
-    dict_list = {}
-    instance_config = config_importer.import_data(dict_list,file_path)
-
-    n = 8  # create an instance with older date tag
-    f_user_data = open(r"user_data.sh","r")
-    user_data = f_user_data.read()
-    date_tag = str(datetime.date.today() - datetime.timedelta(days=n)) # for testing
-    response = ec2.create_instances(
-        ImageId = instance_config["image-id"],
-        MinCount=1,
-        MaxCount=1,
-        InstanceType = instance_config["instance-type"],
-        KeyName =instance_config["key-name"],
-        UserData = user_data,
-        TagSpecifications=[
-            {
-                'ResourceType': 'instance',
-                'Tags': [
-                    {
-                        'Key': 'Date',
-                        'Value': date_tag
-                    },
-                    {
-                        'Key': 'Owner',
-                        'Value': 'tomerlevy'
-                    },
-                    {
-                        'Key': 'by',
-                        'Value': 'Created_By_tomer_CLI'
-                    }
-                ]
-            },
-        ],
-        NetworkInterfaces = [
-            {
-            'AssociatePublicIpAddress': True ,
-            'DeleteOnTermination': True,
-            'Description': 'string',
-            'DeviceIndex': 0,
-            'SubnetId': 'subnet-032dba4d76776a812',
-            'Groups': [
-                instance_config["security-group"],
-               ],
-
-            },
-        ],
+def get_instances(client,state):
+    instance_tags =client.describe_instances(
+        Filters=[
+            {'Name': 'tag:Owner','Values': ['tomerlevy']},
+            {'Name': 'tag:by','Values': ['Created_By_tomer_CLI']},
+            {'Name': 'instance-state-name','Values': state}
+        ]
     )
-    print(response[0].private_ip_address)
-    f_user_data.close()
+    instances =[]
+    for reservation in instance_tags['Reservations']:
+        for instance in reservation['Instances']:
+            instances.append(instance['InstanceId'])
+
+    return instances
+
+
+
+def get_instance_type(instance_config):
+    info_message = """
+    choose an Instance type:
+    [1] - t3.nano
+    [2] - t4g.nano    
+        """
+    print(info_message)
+    while 1:
+        if keyboard.is_pressed('1'): #
+            instance_config["instance-type"] = "t3.nano"
+            time.sleep(1)
+            return instance_config
+        if keyboard.is_pressed('2'): #
+            instance_config["instance-type"]="t4g.nano"
+            time.sleep(1)
+            return instance_config
+
+def get_image_id(instance_config):
+    info_message = """
+    choose an Image ID:
+    [1] - Amazon linux
+    [2] - Ubuntu    
+           """
+    print(info_message)
+    while 1:
+        if keyboard.is_pressed('1'):  #
+            instance_config["image-id"] = instance_config["image-amazon"]
+            time.sleep(1)
+            return instance_config
+        if keyboard.is_pressed('2'):  #
+            instance_config["image-id"] = instance_config["image-ubuntu"]
+            time.sleep(1)
+            return instance_config
+
+
+def get_instance_config(ec2):
+
+
+    file_path = "ec2_configuration.txt"
+    instance_config = {}
+    instance_config = config_importer.import_data(instance_config,file_path)
+    instance_config['name'] = input("\nChoose a name for you instance > ")
+    instance_config = get_instance_type(instance_config)
+    instance_config = get_image_id(instance_config)
+
+    return instance_config
+
+# todo: add function to request for input (AMI and instance type)
+def create_instance():
+
+    ec2 = boto3.resource('ec2', region_name='us-east-1')
+    client = boto3.client('ec2', region_name='us-east-1')
+    max_running = 2
+    if len(get_instances(client, [state_running])) >= max_running:
+        print("\nYou cant create more instances while we already have two running!")
+        return
+
+    instance_config = get_instance_config(ec2)
+    print("""
+    ==========================================
+     Creating AWS EC2 Instance... Please Wait
+    ==========================================
+
+     - Instance Type: t3.nano  
+     - Region: us-east-1  
+     - Status: Provisioning...  
+
+     Allocating resources...  
+     Connecting to AWS...  
+     Launching instance...  
+
+     Instance creation in progress!  
+     Check AWS Console for status updates.
+
+    =========================================="""
+          )
+    response = ec2.create_instances(
+            ImageId=instance_config["image-id"],
+            MinCount=1,
+            MaxCount=1,
+            InstanceType=instance_config["instance-type"],
+            KeyName=instance_config["key-name"],
+            TagSpecifications=[
+                {
+                    'ResourceType': 'instance',
+                    'Tags': [
+                        {
+                            'Key': 'Name',
+                            'Value': instance_config["name"]
+                        },
+                        {
+                            'Key': 'Owner',
+                            'Value': 'tomerlevy'
+                        },
+                        {
+                            'Key': 'by',
+                            'Value': 'Created_By_tomer_CLI'
+                        }
+                    ]
+                },
+            ],
+            NetworkInterfaces=[
+                {
+                    'AssociatePublicIpAddress': True,
+                        'DeleteOnTermination': True,
+                    'Description': 'string',
+                    'DeviceIndex': 0,
+                    'SubnetId': 'subnet-032dba4d76776a812',
+                    'Groups': [
+                        instance_config["security-group"],
+                    ],
+
+                },
+            ],
+    )
+    creation_complete= """
+    ==========================================
+     AWS EC2 Instance Created Successfully
+    ==========================================
+
+     - Instance ID: {0}  
+     - Instance Type: {1}  
+     - Key: {2}  
+     - Status: Running  
+
+     Instance is now active and ready for use.  
+     Use SSH or AWS Console to connect.  
+
+    ==========================================""".format(response[0],instance_config["instance-type"],instance_config["key-name"])
+    print(creation_complete)
     return response[0]
 
 
-def get_instances(client):
-    instance_tags =client.describe_instances(
-        Filters=[
-            {
-                'Name': 'tag:Owner',
-                'Values': [
-                    'tomerlevy'
-                ]
-            }
-        ]
-    )
-    instances= []
-    # todo: add counter for running instances
+def select_instance(instances):
+    amount = min(len(instances),9)
     count = 0
-    for reservation in instance_tags['Reservations']:
-        for instance in reservation['Instances']:
-            for tag in instance["Tags"]:
-                if "Key" in tag and tag["by"] == "Created_By_tomer_CLI":
-                        instances.append(instance)
-    return instances
-#todo: change into a start pause function
-def delete_instances(client,instances):
-    ids = []
-    running = 16
+    for instance in instances:
+        print("""
+         [{0}] - {1}""".format(count,instance))
+        count+=1
+    while 1:
+        count = 0
+        for instance in instances:
+            if keyboard.is_pressed(str(count)):
+                return instance
+            count += 1
 
-    for instance_id in instances:
-        if ("State" in instance_id
-                and instance_id["State"]["Code"] == running):
-            ids.append(instance_id["InstanceId"])
 
-    if len(ids) == 0:
-        return "no instance to delete"
-    response = client.terminate_instances(
-         InstanceIds=ids
+def start_instance():
+    client = boto3.client('ec2', region_name='us-east-1')
+
+    instance =select_instance(get_instances(client,[state_paused]))
+
+    response = client.start_instances(
+         InstanceIds=[instance]
      )
-    return ids
+    print("{} started".format(instance))
+def pause_instance():
+    client = boto3.client('ec2', region_name='us-east-1')
+
+    instance =select_instance(get_instances(client,[state_running]))
+
+    response = client.stop_instances(
+         InstanceIds=[instance]
+    )
+    print("{} paused".format(instance))
+def terminated_instance():
+    client = boto3.client('ec2', region_name='us-east-1')
+
+    instance = select_instance(get_instances(client, [state_running,state_paused]))
+    response = client.terminate_instances(
+         InstanceIds=[instance]
+    )
+    print("{} terminated".format(instance))
+
+
+def list_instances():
+    client = boto3.client('ec2', region_name='us-east-1')
+
+    print(get_instances(client,[state_running,state_paused]))
+
+
+def manager(user_id):
+    controls_message = """
+       ==========================================
+        AWS Resource Manager v1.0 
+       ==========================================
+        Select:
+         [C] - Create
+         [S] - Start instance
+         [P] - Pause instance
+         [L] - List"""
+
+    if user_id == "admin":
+        controls_message+= """
+         [D] - Delete"""
+
+    controls_message += """
+         [B] - Back to previous menu
+         [Q] - Quit program
+      
+      Press a key to continue...
+         """
+
+    print(controls_message)
+    while 1:
+        if keyboard.is_pressed('c'):
+            create_instance()
+            time.sleep(1)
+            return
+        elif keyboard.is_pressed('s'):
+            start_instance()
+            time.sleep(1)
+            return
+        elif keyboard.is_pressed('p'):
+            pause_instance()
+            time.sleep(1)
+            return
+        elif keyboard.is_pressed('d') and user_id == "admin":
+            terminated_instance()
+            time.sleep(1)
+            return
+        elif keyboard.is_pressed('l'):
+            list_instances()
+            time.sleep(1)
+            return
+        elif keyboard.is_pressed('b'):
+            time.sleep(1)
+            return True
+        elif keyboard.is_pressed('q'):
+            quit("Thank you for using Tomer AWS resource manager!")
+
+

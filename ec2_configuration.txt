@@ -1,0 +1,7 @@
+instances
+key-name: tomer_keys2
+security-group:sg-051fef9db3163e627
+image-amazon:ami-053a45fff0a704a47
+image-ubuntu:ami-04b4f1a9cf54c11d0
+
+
