@@ -208,6 +208,7 @@ def list_instances():
 
 
 def manager(user_id):
+    time.sleep(1)
     controls_message = """
        ==========================================
         AWS Resource Manager v1.0 
@@ -255,6 +256,6 @@ def manager(user_id):
             time.sleep(1)
             return True
         elif keyboard.is_pressed('q'):
-            quit("Thank you for using Tomer AWS resource manager!")
+            quit("\nThank you for using Tomer AWS resource manager!")
 
 

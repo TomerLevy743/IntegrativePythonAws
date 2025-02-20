@@ -1,3 +1,5 @@
+import time
+
 import botocore
 import boto3
 import keyboard
@@ -61,7 +63,7 @@ def do_intro_screen():
         exit(aws_credentials_not_found)
 
     print(intro.format(sync_result))
-
+    time.sleep(1)
 
 def do_input_manager(user_id):
     controls_message = """
@@ -76,6 +78,7 @@ def do_input_manager(user_id):
       
       Press a key to continue...
 """
+    print(controls_message)
     while 1:
         if keyboard.is_pressed('1'):  # ec2
             manage_ec2.manager(user_id)
