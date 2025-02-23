@@ -4,20 +4,23 @@ import boto3
 import keyboard
 
 import config_importer
+import utilities
 
 state_running="running"
 state_paused="paused"
 
 def get_instances(client,state):
-    instance_tags =client.describe_instances(
+    owner_tag = "tomerlevy"
+    by_tag = "Created_By_Tomer_CLI"
+    response =client.describe_instances(
         Filters=[
-            {'Name': 'tag:Owner','Values': ['tomerlevy']},
-            {'Name': 'tag:by','Values': ['Created_By_tomer_CLI']},
+            {'Name': 'tag:Owner','Values': [owner_tag]},
+            {'Name': 'tag:by','Values': [by_tag]},
             {'Name': 'instance-state-name','Values': state}
         ]
     )
     instances =[]
-    for reservation in instance_tags['Reservations']:
+    for reservation in response['Reservations']:
         for instance in reservation['Instances']:
             instances.append(instance['InstanceId'])
 
@@ -27,9 +30,9 @@ def get_instances(client,state):
 
 def get_instance_type(instance_config):
     info_message = """
-    choose an Instance type:
-    [1] - t3.nano
-    [2] - t4g.nano    
+         choose an Instance type:
+        [1] - t3.nano
+        [2] - t4g.nano    
         """
     print(info_message)
     while 1:
@@ -38,24 +41,30 @@ def get_instance_type(instance_config):
             time.sleep(1)
             return instance_config
         if keyboard.is_pressed('2'): #
-            instance_config["instance-type"]="t4g.nano"
+            instance_config["instance-type"] = "t4g.nano"
             time.sleep(1)
             return instance_config
 
-def get_image_id(instance_config):
+def get_image_id(instance_config,):
     info_message = """
-    choose an Image ID:
-    [1] - Amazon linux
-    [2] - Ubuntu    
+         choose an Image ID:
+        [1] - Amazon linux
+        [2] - Ubuntu    
            """
     print(info_message)
+
+    instance_type = instance_config["instance-type"]
+    index = instance_type.find('.')
+    architecture = instance_type[:index]
     while 1:
         if keyboard.is_pressed('1'):  #
-            instance_config["image-id"] = instance_config["image-amazon"]
+            instance_config["image-id"] = instance_config["amazon-"
+                                                          + architecture]
             time.sleep(1)
             return instance_config
         if keyboard.is_pressed('2'):  #
-            instance_config["image-id"] = instance_config["image-ubuntu"]
+            instance_config["image-id"] = instance_config["ubuntu-"
+                                                          + architecture]
             time.sleep(1)
             return instance_config
 
@@ -63,12 +72,13 @@ def get_image_id(instance_config):
 def get_instance_config(ec2):
 
 
-    file_path = "ec2_configuration.txt"
+    file_path = "ec2_configuration"
     instance_config = {}
     instance_config = config_importer.import_data(instance_config,file_path)
-    instance_config['name'] = input("\nChoose a name for you instance > ")
+    utilities.flush_input()
+    instance_config['name'] = input("\nChoose a name for your instance > ")
     instance_config = get_instance_type(instance_config)
-    instance_config = get_image_id(instance_config)
+    instance_config = get_image_id(instance_config,)
 
     return instance_config
 
@@ -79,27 +89,28 @@ def create_instance():
     client = boto3.client('ec2', region_name='us-east-1')
     max_running = 2
     if len(get_instances(client, [state_running])) >= max_running:
-        print("\nYou cant create more instances while we already have two running!")
+        print("\nYou cant create more instances while"
+              " we already have two running!")
         return
 
     instance_config = get_instance_config(ec2)
-    print("""
-    ==========================================
-     Creating AWS EC2 Instance... Please Wait
-    ==========================================
+    print(f"""
+==================================================
+        Creating AWS EC2 Instance... Please Wait
+==================================================
 
-     - Instance Type: t3.nano  
-     - Region: us-east-1  
-     - Status: Provisioning...  
+        - Instance Type: {instance_config['instance-type']}  
+        - Region: us-east-1  
+        - Status: Provisioning...  
 
-     Allocating resources...  
-     Connecting to AWS...  
-     Launching instance...  
+         Allocating resources...  
+         Connecting to AWS...  
+         Launching instance...  
 
-     Instance creation in progress!  
-     Check AWS Console for status updates.
+         Instance creation in progress!  
+         Check AWS Console for status updates.
 
-    =========================================="""
+=================================================="""
           )
     response = ec2.create_instances(
             ImageId=instance_config["image-id"],
@@ -141,30 +152,33 @@ def create_instance():
             ],
     )
     creation_complete= """
-    ==========================================
-     AWS EC2 Instance Created Successfully
-    ==========================================
+==================================================
+        AWS EC2 Instance Created Successfully
+==================================================
 
-     - Instance ID: {0}  
-     - Instance Type: {1}  
-     - Key: {2}  
-     - Status: Running  
+        - Instance ID: {0}  
+        - Instance Type: {1}  
+        - Key: {2}  
+        - Status: Running  
 
-     Instance is now active and ready for use.  
-     Use SSH or AWS Console to connect.  
+         Instance is now active and ready for use.  
+         Use SSH or AWS Console to connect.  
 
-    ==========================================""".format(response[0],instance_config["instance-type"],instance_config["key-name"])
+==================================================""".format(response[0]
+            ,instance_config["instance-type"],instance_config["key-name"])
     print(creation_complete)
     return response[0]
 
 
 def select_instance(instances):
-    amount = min(len(instances),9)
+    max_instances = 9
     count = 0
     for instance in instances:
         print("""
          [{0}] - {1}""".format(count,instance))
         count+=1
+        if count > max_instances:
+            break
     while 1:
         count = 0
         for instance in instances:
@@ -194,7 +208,8 @@ def pause_instance():
 def terminated_instance():
     client = boto3.client('ec2', region_name='us-east-1')
 
-    instance = select_instance(get_instances(client, [state_running,state_paused]))
+    instance = select_instance(get_instances(client, [state_running
+        ,state_paused]))
     response = client.terminate_instances(
          InstanceIds=[instance]
     )
@@ -210,25 +225,28 @@ def list_instances():
 def manager(user_id):
     time.sleep(1)
     controls_message = """
-       ==========================================
-        AWS Resource Manager v1.0 
-       ==========================================
-        Select:
-         [C] - Create
-         [S] - Start instance
-         [P] - Pause instance
-         [L] - List"""
+==================================================
+        EC2 Manager v1.0 
+==================================================
+         Select:
+        [C] - Create instance
+         
+        [S] - Start instance
+        [P] - Pause instance"""
+    end_control_message = """
+        [L] - List all instances
+        [B] - Back to previous menu
+        [Q] - Quit program
+      
+Press a key to continue...
+==================================================
+         """
 
     if user_id == "admin":
         controls_message+= """
-         [D] - Delete"""
+        [D] - Delete instance"""
 
-    controls_message += """
-         [B] - Back to previous menu
-         [Q] - Quit program
-      
-      Press a key to continue...
-         """
+    controls_message += end_control_message
 
     print(controls_message)
     while 1:
