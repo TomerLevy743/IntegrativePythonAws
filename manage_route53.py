@@ -5,17 +5,6 @@ import keyboard
 import utilities
 
 
-cli_tags = [
-                        {
-                            'Key': 'by',
-                            'Value': 'tomer-cli'
-                        },
-                        {
-                            'Key': 'Owner',
-                            'Value': 'tomerlevy'
-                        }
-]
-
 
 def add_tags_to_zone(client, zone_id,tags):
     client.change_tags_for_resource(
@@ -75,23 +64,6 @@ def create_zones(client):
     print(zone_id)
     return extract_id(zone_id)
 
-def filter_by_tags(client, zone_id):
-    response = client.list_tags_for_resource(
-            ResourceType='hostedzone',
-            ResourceId=zone_id
-    )
-    key = "Key"
-    value = "Value"
-    tags = response["ResourceTagSet"]["Tags"]
-    for tag in tags:
-
-        if tag[key] == cli_tags[0][key]:
-            if tag[value] == cli_tags[0][value]:
-                return  True
-
-
-    return False
-
 
 def get_zones(client):
     """list all relevant zones ( filter by tags )"""
@@ -99,7 +71,12 @@ def get_zones(client):
     tagged_zones = []
     for zone in response['HostedZones']:
         zone_id = extract_id(zone['Id'])
-        if filter_by_tags(client,zone_id):
+        tags = client.list_tags_for_resource(
+                ResourceType='hostedzone'
+                ,ResourceId=zone_id
+        )
+        tags = tags["ResourceTagSet"]["Tags"]
+        if utilities.filter_by_tags(tags):
             tagged_zones.append(zone_id)
 
     print(tagged_zones)
@@ -111,6 +88,8 @@ def delete_zones(client):
     """TODO: delete zones for admin only"""
     zones = get_zones(client)
     zone_id = utilities.pick_resource(zones)
+    if zone_id == -1:
+        return
     response = client.delete_hosted_zone(Id=zone_id)
 
 
@@ -124,6 +103,8 @@ def manage_dns_record(client, record_action="CREATE"):
 
     zones = get_zones(client)
     zone_id = utilities.pick_resource(zones)
+    if zone_id == -1:
+        return
     zone_name = get_domain_name(client,zone_id)
     utilities.flush_input()
     record_name = f"{input("\nName > ")}.{zone_name}"
@@ -206,7 +187,7 @@ Press a key to continue...
         if keyboard.is_pressed('c'):
             zone_id = create_zones(client)
             time.sleep(1)
-            add_tags_to_zone(client,zone_id,cli_tags)
+            add_tags_to_zone(client,zone_id,utilities.cli_tags())
             manager(user_id)
             return
         elif keyboard.is_pressed('M'):
@@ -235,7 +216,7 @@ Press a key to continue...
         elif keyboard.is_pressed('q'):
             utilities.do_quit()
 
-client = boto3.client("route53", 'us-east-1')
-manager("admin")
+# client = boto3.client("route53", 'us-east-1')
+# manager("admin")
 # get_zones(client)
 # delete_zones(client)

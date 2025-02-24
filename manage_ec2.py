@@ -10,14 +10,10 @@ state_running="running"
 state_paused="paused"
 
 def get_instances(client,state):
-    owner_tag = "tomerlevy"
-    by_tag = "Created_By_Tomer_CLI"
+    tags = utilities.cli_tags()
+    tags.append({'Name': 'instance-state-name','Values':state})
     response =client.describe_instances(
-        Filters=[
-            {'Name': 'tag:Owner','Values': [owner_tag]},
-            {'Name': 'tag:by','Values': [by_tag]},
-            {'Name': 'instance-state-name','Values': state}
-        ]
+        Filters=tags
     )
     instances =[]
     for reservation in response['Reservations']:
@@ -88,6 +84,8 @@ def create_instance():
     ec2 = boto3.resource('ec2', region_name='us-east-1')
 
     instance_config = get_instance_config(ec2)
+    tags = utilities.cli_tags()
+    tags.append({'Key': 'Name','Value': instance_config["name"]})
     print(f"""
 ==================================================
         Creating AWS EC2 Instance... Please Wait
@@ -115,20 +113,7 @@ def create_instance():
             TagSpecifications=[
                 {
                     'ResourceType': 'instance',
-                    'Tags': [
-                        {
-                            'Key': 'Name',
-                            'Value': instance_config["name"]
-                        },
-                        {
-                            'Key': 'Owner',
-                            'Value': 'tomerlevy'
-                        },
-                        {
-                            'Key': 'by',
-                            'Value': 'Created_By_tomer_CLI'
-                        }
-                    ]
+                    'Tags': tags
                 },
             ],
             NetworkInterfaces=[
@@ -145,41 +130,22 @@ def create_instance():
                 },
             ],
     )
-    creation_complete= """
+    creation_complete= f"""
 ==================================================
         AWS EC2 Instance Created Successfully
 ==================================================
 
-        - Instance ID: {0}  
-        - Instance Type: {1}  
-        - Key: {2}  
+        - Instance ID: {response[0]}  
+        - Instance Type: {instance_config["instance-type"]}  
+        - Key: {instance_config["key-name"]}  
         - Status: Running  
 
          Instance is now active and ready for use.  
          Use SSH or AWS Console to connect.  
 
-==================================================""".format(response[0]
-            ,instance_config["instance-type"],instance_config["key-name"])
+=================================================="""
     print(creation_complete)
     return response[0]
-
-
-# def utilities.pick_resource(instances):
-#     max_instances = 9
-#     count = 0
-#     for instance in instances:
-#         print("""
-#          [{0}] - {1}""".format(count,instance))
-#         count+=1
-#         if count > max_instances:
-#             break
-#     while 1:
-#         count = 0
-#         for instance in instances:
-#             if keyboard.is_pressed(str(count)):
-#                 return instance
-#             count += 1
-
 
 
 def manage_instance(client, action):

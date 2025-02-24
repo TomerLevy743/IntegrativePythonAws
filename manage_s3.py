@@ -15,31 +15,39 @@ def get_buckets(client):
             Prefix=prefix,
             BucketRegion='us-east-1',
     )
-    return response['Buckets']
+    tagged_buckets= []
+    for bucket in response['Buckets']:
+        tags =  client.get_bucket_tagging(Bucket=bucket['Name'])['TagSet']
+        print(tags)
+
+        if utilities.filter_by_tags(tags):
+            tagged_buckets.append(bucket['Name'])
+
+    return tagged_buckets
 
 def print_buckets(client):
     print(get_buckets(client))
 
-def get_bucket(buckets):
-    max_buckets = 9
-    count = 0
-    if len(buckets) == 0 :
-        return -1
-    for bucket in buckets:
-        print("""
-             [{0}] - {1}""".format(count, bucket))
-        count += 1
-        if max_buckets > 9 :
-            break
-
-    while 1:
-        count = 0
-        for bucket in buckets:
-            if keyboard.is_pressed(str(count)):
-                return bucket
-            if keyboard.is_pressed('b'):
-                return -1
-            count += 1
+# def get_bucket(buckets):
+#     max_buckets = 9
+#     count = 0
+#     if len(buckets) == 0 :
+#         return -1
+#     for bucket in buckets:
+#         print("""
+#              [{0}] - {1}""".format(count, bucket))
+#         count += 1
+#         if max_buckets > 9 :
+#             break
+#
+#     while 1:
+#         count = 0
+#         for bucket in buckets:
+#             if keyboard.is_pressed(str(count)):
+#                 return bucket
+#             if keyboard.is_pressed('b'):
+#                 return -1
+#             count += 1
 
 
 def get_access_level():
@@ -78,9 +86,7 @@ def change_bucket_access_level(client, bucket_name, access_level):
     if access_level == 'private':
         flag = True
 
-
     print(bucket_name)
-
     response = client.put_public_access_block(
             Bucket= bucket_name,
             PublicAccessBlockConfiguration={
@@ -89,7 +95,6 @@ def change_bucket_access_level(client, bucket_name, access_level):
                 'BlockPublicPolicy': flag,
                 'RestrictPublicBuckets': flag
             },
-             ExpectedBucketOwner='992382545251'
     )
     if not flag :
         bucket_policy = {
@@ -113,17 +118,18 @@ def change_bucket_access_level(client, bucket_name, access_level):
         client.put_bucket_policy(Bucket=bucket_name,Policy=policy_json)
 
 
+def add_tags_to_bucket(client, bucket):
+    client.put_bucket_tagging(Bucket=bucket,
+                              Tagging= {'TagSet':utilities.cli_tags()} )
 
 def create_bucket(client):
     """ Create a S3 bucket """
-    # utilities.clear_terminal()
-    # utilities.flush_input()
+    utilities.clear_terminal()
+    utilities.flush_input()
     bucket_name =prefix + input("\nChoose a name for your bucket > ")
 
     access_level = get_access_level()
     if access_level == -1:
-        #todo user var
-        manager("")
         return
 
     print("""
@@ -146,11 +152,10 @@ def create_bucket(client):
     ==================================================
     """.format(bucket_name, access_level))
     response = client.create_bucket(Bucket=bucket_name)
-
-
+    # change the bucket to public if necessary
     change_bucket_access_level(client, bucket_name, access_level)
-
-
+    # adding tags to the bucket
+    add_tags_to_bucket(client,bucket_name)
 
 
     print("""
@@ -176,20 +181,18 @@ def upload_file(client):
     """ upload a file to s3"""
     bucket = utilities.pick_resource(get_buckets(client))
     if bucket == -1:
-        manager("")
         return
     utilities.flush_input()
-    bucket_name = bucket["Name"]
     file_path = input("Enter the path file you want to upload. ")
     file_name = input("Enter the name you want the file to have")
-    response = client.upload_file(Filename=file_path,Bucket=bucket["Name"],Key=file_name)
+    response = client.upload_file(Filename=file_path,Bucket=bucket,Key=file_name)
     #TODO: file uploaded message
     print(f"""
 ==================================================
         AWS S3 File Upload Successful!
 ==================================================
 
-        - Bucket Name: {bucket_name}   
+        - Bucket Name: {bucket}   
         - Local File Path: {file_path}  
         - S3 File Name: {file_name}  
         - Region: us-east-1  
@@ -210,19 +213,18 @@ def delete_file(client):
     """ terminate a file from s3 bucket"""
     bucket = utilities.pick_resource(get_buckets(client))
     if bucket == -1 :
-        manager("")
+        
         return
     utilities.flush_input()
-    bucket_name = bucket["Name"]
     file_name = input("Enter the name you want the file to delete")
-    response = client.delete_object(Bucket=bucket["Name"],Key=file_name)
+    response = client.delete_object(Bucket=bucket,Key=file_name)
     #TODO: file terminated message
     print(f"""
 ==================================================
         AWS S3 File Deletion Completed!
 ==================================================
 
-        - Bucket Name: {bucket_name} 
+        - Bucket Name: {bucket} 
         - File Name: {file_name}  
         - Region: us-east-1  
         - Status: File Deleted ✅  
@@ -240,7 +242,7 @@ def delete_bucket(client):
     """ terminate a s3 bucket"""
     bucket = utilities.pick_resource(get_buckets(client))
     if bucket == -1:
-        manager("")
+        
         return
     #TODO: add bucket deletion started
     print("""
@@ -261,8 +263,8 @@ def delete_bucket(client):
          Check AWS Console for status updates.
 
 ==================================================
-    """.format(bucket["Name"]))
-    response = client.delete_bucket(Bucket=bucket["Name"])
+    """.format(bucket))
+    response = client.delete_bucket(Bucket=bucket)
     #TODO: add bucket deletion complete
     print("""
 ==================================================
@@ -279,9 +281,12 @@ def delete_bucket(client):
          Verify deletion in the AWS Console for confirmation.
 
 ==================================================
-""".format(bucket["Name"]))
+""".format(bucket))
 
 #TODO: create CLI interface for s3
+
+
+
 def manager(user_id):
     utilities.clear_terminal()
     client = boto3.client('s3', 'us-east-1')
@@ -312,7 +317,7 @@ Press a key to continue...
     print(controls_message)
     while 1:
         if keyboard.is_pressed('c'):
-            create_bucket(client)
+            bucket = create_bucket(client)
             time.sleep(1)
             manager(user_id)
             return
@@ -343,3 +348,4 @@ Press a key to continue...
            utilities.do_quit()
 
 
+# manager("admin")
