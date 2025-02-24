@@ -65,7 +65,8 @@ def get_access_level():
             print(confirmation_message)
             while 1:
                 if keyboard.is_pressed('y'):
-                    return 'public-read'
+
+                    return 'public-read-write'
                 elif keyboard.is_pressed('n'):
                     break
         elif keyboard.is_pressed('b'):
@@ -78,6 +79,7 @@ def change_bucket_access_level(client, bucket_name, access_level):
         flag = True
 
 
+    print(bucket_name)
 
     response = client.put_public_access_block(
             Bucket= bucket_name,
@@ -87,7 +89,7 @@ def change_bucket_access_level(client, bucket_name, access_level):
                 'BlockPublicPolicy': flag,
                 'RestrictPublicBuckets': flag
             },
-
+             ExpectedBucketOwner='992382545251'
     )
     if not flag :
         bucket_policy = {
@@ -114,35 +116,13 @@ def change_bucket_access_level(client, bucket_name, access_level):
 
 def create_bucket(client):
     """ Create a S3 bucket """
-    s3_control = boto3.client('s3control', 'us-east-1')
+    # utilities.clear_terminal()
+    # utilities.flush_input()
+    bucket_name =prefix + input("\nChoose a name for your bucket > ")
 
-    # response = s3_control.delete_public_access_block(
-    #         AccountId='992382545251'
-    # )
-    # print (response)
-    #
-    # response = s3_control.put_public_access_block(
-    #         PublicAccessBlockConfiguration={
-    #             'BlockPublicAcls':  False,
-    #             'IgnorePublicAcls': False,
-    #             'BlockPublicPolicy': False,
-    #             'RestrictPublicBuckets': False
-    #         },
-    #         AccountId='992382545251'
-    #
-    # )
-    #
-    # print(response)
-    #
-    # response = s3_control.get_public_access_block(AccountId='992382545251')
-    # print (response["PublicAccessBlockConfiguration"])
-
-    utilities.clear_terminal()
-    utilities.flush_input()
-    bucket_name = input("\nChoose a name for your bucket > ")
     access_level = get_access_level()
     if access_level == -1:
-        #todo save user_id for manager function
+        #todo user var
         manager("")
         return
 
@@ -165,12 +145,13 @@ def create_bucket(client):
 
     ==================================================
     """.format(bucket_name, access_level))
-    response = client.create_bucket(
-            Bucket=prefix + bucket_name,
-            ACL = access_level,
-            ObjectOwnership = "ObjectWriter"
-    )
-    # change_bucket_access_level(client, bucket_name, access_level)
+    response = client.create_bucket(Bucket=bucket_name)
+
+
+    change_bucket_access_level(client, bucket_name, access_level)
+
+
+
 
     print("""
 ==================================================
@@ -202,6 +183,7 @@ def upload_file(client):
     file_path = input("Enter the path file you want to upload. ")
     file_name = input("Enter the name you want the file to have")
     response = client.upload_file(Filename=file_path,Bucket=bucket["Name"],Key=file_name)
+    #TODO: file uploaded message
     print(f"""
 ==================================================
         AWS S3 File Upload Successful!
@@ -234,6 +216,7 @@ def delete_file(client):
     bucket_name = bucket["Name"]
     file_name = input("Enter the name you want the file to delete")
     response = client.delete_object(Bucket=bucket["Name"],Key=file_name)
+    #TODO: file terminated message
     print(f"""
 ==================================================
         AWS S3 File Deletion Completed!
@@ -259,6 +242,7 @@ def delete_bucket(client):
     if bucket == -1:
         manager("")
         return
+    #TODO: add bucket deletion started
     print("""
 ==================================================
         Deleting AWS S3 Bucket... Please Wait
@@ -279,6 +263,7 @@ def delete_bucket(client):
 ==================================================
     """.format(bucket["Name"]))
     response = client.delete_bucket(Bucket=bucket["Name"])
+    #TODO: add bucket deletion complete
     print("""
 ==================================================
         AWS S3 Bucket Deleted Successfully!
@@ -296,6 +281,7 @@ def delete_bucket(client):
 ==================================================
 """.format(bucket["Name"]))
 
+#TODO: create CLI interface for s3
 def manager(user_id):
     utilities.clear_terminal()
     client = boto3.client('s3', 'us-east-1')

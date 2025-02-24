@@ -1,18 +1,36 @@
+import time
+from fileinput import close
+
 import boto3
+import keyboard
 
 
 def get_zone_name():
     """TODO: get the domain name from the user"""
+    return  input("\nChoose a name for your zone > ")
 
-    return ""
+
 
 
 def create_zones(client):
-
     zone_name = get_zone_name()
-    #TODO: add output for start
-    response = client.create_hosted_zone(Name=zone_name,CallerReference='test',
-    )
+    #print create start
+    print("""
+==================================================
+        Creating Route 53 Hosted Zone... Please Wait
+==================================================
+
+        - Status: Initializing Hosted Zone Creation  
+        - Verifying domain configuration...  
+        - Allocating Route 53 resources...  
+        - Establishing DNS settings...  
+
+         Please wait while AWS Route 53 sets up your hosted zone.
+
+==================================================
+    """)
+    response = client.create_hosted_zone(Name=zone_name,CallerReference='test')
+    # add tags to the zone
     zone_id = response["HostedZone"]["Id"]
     client.change_tags_for_resource(
             ResourceType='hostedzone',
@@ -29,7 +47,21 @@ def create_zones(client):
             ],
 
     )
-    #TODO: add output for completion
+    #print output
+    print("""
+==================================================
+        Route 53 Hosted Zone Created Successfully!
+==================================================
+
+        - Status: Hosted Zone Creation Complete ✅  
+        - DNS configuration is now active.  
+        - You can manage DNS records from the AWS Route 53 Console.  
+        - Ensure to update your domain registrar with the new name servers.  
+
+         Hosted zone is now ready for use.
+
+==================================================
+    """)
 
 def select_zone(zones):
     """select a specific zone from list"""
@@ -44,7 +76,10 @@ def get_zones(client):
             DelegationSetId='string',
             HostedZoneType='PrivateHostedZone'
     )
-    return 0
+    tagged_zones = []
+    # for reservation in response['Reservations']:
+    #     for instance in reservation['Instances']:
+    #         instances.append(instance['InstanceId'])
 
 
 def delete_zones(client):
@@ -86,6 +121,57 @@ def manage_dns_record(client, record_action=None):
 
 
 def manager(user_id):
+    time.sleep(1)
     client = boto3.client("Route53", 'us-east-1')
-    #todo: add manager
-    return None
+    controls_message = """
+==================================================
+        Route53 Manager v1.0 
+==================================================
+         Select:
+        [C] - Create DNS zone
+        [S] - Create DNS records
+        [M] - Manage DNS records
+        [D] - Delete DNS records"""
+    end_control_message = """
+        [B] - Back to previous menu
+        [Q] - Quit program
+
+Press a key to continue...
+==================================================
+             """
+
+    if user_id == "admin":
+        controls_message += """
+        [R] - Delete DNS zone"""
+
+    controls_message += end_control_message
+
+    print(controls_message)
+    while 1:
+        if keyboard.is_pressed('c'):
+            create_zones(client)
+            time.sleep(1)
+            return
+        elif keyboard.is_pressed('s'):
+            manage_dns_record(client,'create')
+            time.sleep(1)
+            return
+        elif keyboard.is_pressed('m'):
+            manage_dns_record(client,"manage")
+            time.sleep(1)
+            return
+        elif keyboard.is_pressed('d'):
+            manage_dns_record(client,"delete")
+            time.sleep(1)
+            return
+        elif keyboard.is_pressed('r') and user_id == "admin":
+            delete_zones(client)
+            time.sleep(1)
+            return
+        elif keyboard.is_pressed('b'):
+            time.sleep(1)
+            return True
+        elif keyboard.is_pressed('q'):
+            quit("\nThank you for using Tomer AWS resource manager!")
+
+
