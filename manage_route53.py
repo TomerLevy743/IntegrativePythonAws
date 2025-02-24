@@ -1,19 +1,38 @@
 import time
-from fileinput import close
-
+from datetime import datetime
 import boto3
 import keyboard
+import utilities
 
 
-def get_zone_name():
-    """TODO: get the domain name from the user"""
-    return  input("\nChoose a name for your zone > ")
+cli_tags = [
+                        {
+                            'Key': 'by',
+                            'Value': 'tomer-cli'
+                        },
+                        {
+                            'Key': 'Owner',
+                            'Value': 'tomerlevy'
+                        }
+]
 
 
+def add_tags_to_zone(client, zone_id,tags):
+    client.change_tags_for_resource(
+            ResourceType='hostedzone',
+            ResourceId=zone_id,
+            AddTags=tags,
+    )
+
+
+def extract_id(zone_id):
+    id_index = zone_id.find("/", 1)
+    return zone_id[id_index + 1:]
 
 
 def create_zones(client):
-    zone_name = get_zone_name()
+    utilities.flush_input()
+    zone_name = input("\nChoose a name for your zone > ")
     #print create start
     print("""
 ==================================================
@@ -29,24 +48,14 @@ def create_zones(client):
 
 ==================================================
     """)
-    response = client.create_hosted_zone(Name=zone_name,CallerReference='test')
+    now = datetime.now()
+
+    current_time = now.strftime("%H:%M:%S")
+    response = client.create_hosted_zone(Name=zone_name,CallerReference=current_time)
     # add tags to the zone
     zone_id = response["HostedZone"]["Id"]
-    client.change_tags_for_resource(
-            ResourceType='hostedzone',
-            ResourceId=zone_id,
-            AddTags=[
-                {
-                    'Key': 'by',
-                    'Value': 'tomer-cli'
-                },
-                {
-                    'Key': 'Owner',
-                    'Value': 'tomerlevy'
-                }
-            ],
+    zone_change_info = response["ChangeInfo"]["Id"]
 
-    )
     #print output
     print("""
 ==================================================
@@ -62,76 +71,122 @@ def create_zones(client):
 
 ==================================================
     """)
+    print("print zone_id")
+    print(zone_id)
+    return extract_id(zone_id)
 
-def select_zone(zones):
-    """select a specific zone from list"""
-    return 0
+def filter_by_tags(client, zone_id):
+    response = client.list_tags_for_resource(
+            ResourceType='hostedzone',
+            ResourceId=zone_id
+    )
+    key = "Key"
+    value = "Value"
+    tags = response["ResourceTagSet"]["Tags"]
+    for tag in tags:
+
+        if tag[key] == cli_tags[0][key]:
+            if tag[value] == cli_tags[0][value]:
+                return  True
+
+
+    return False
 
 
 def get_zones(client):
     """list all relevant zones ( filter by tags )"""
-    response = client.list_hosted_zones(
-            Marker='string',
-            MaxItems='string',
-            DelegationSetId='string',
-            HostedZoneType='PrivateHostedZone'
-    )
+    response = client.list_hosted_zones()
     tagged_zones = []
-    # for reservation in response['Reservations']:
-    #     for instance in reservation['Instances']:
-    #         instances.append(instance['InstanceId'])
+    for zone in response['HostedZones']:
+        zone_id = extract_id(zone['Id'])
+        if filter_by_tags(client,zone_id):
+            tagged_zones.append(zone_id)
+
+    print(tagged_zones)
+    return tagged_zones
+
 
 
 def delete_zones(client):
-    """TODO: delete zones for admin only remove dns record if needed"""
+    """TODO: delete zones for admin only"""
     zones = get_zones(client)
-    zone_name = select_zone(zones)
-    response = client.delete_hosted_zone(
-            Id=zone_name
-    )
+    zone_id = utilities.pick_resource(zones)
+    response = client.delete_hosted_zone(Id=zone_id)
 
-def manage_dns_record(client, record_action=None):
-    zone_name = ""
-    dns_name = ""
-    collection_id = ""
-    location_name = ""
-    record_action = "create" # 'CREATE'|'DELETE'|'UPSERT'
-    record_name = ""
-    record_type = ""
+
+def get_domain_name(client, zone_id):
+    response = client.get_hosted_zone(Id = zone_id)
+    domain_name = response["HostedZone"]["Name"]
+    return domain_name
+
+
+def manage_dns_record(client, record_action="CREATE"):
+
+    zones = get_zones(client)
+    zone_id = utilities.pick_resource(zones)
+    zone_name = get_domain_name(client,zone_id)
+    utilities.flush_input()
+    record_name = f"{input("\nName > ")}.{zone_name}"
+    record_type = 'A'
+    dns_value = input("Value > ")
+    action_name = record_action[0] + record_action[1:-1].lower() + "ing"
+    if record_action == "UPSERT":
+        action_name = record_action[0] + record_action[1:].lower() + "ing"
+    head_line = "Please Wait"
+    status = "Processing..."
+    manage_record_message = f"""
+==================================================
+        {action_name} DNS Record... {0}
+==================================================
+        - Hosted Zone: {zone_name}  
+        - Record Name: {record_name}  
+        - Record Type: A (IPv4 Address)  
+        - Action: {record_action}
+        - Status: {1}  
+==================================================
+    """
+
+    print(manage_record_message.format(head_line,status))
     response = client.change_resource_record_sets(
-            HostedZoneId=zone_name,
+            HostedZoneId=zone_id,
             ChangeBatch={
                 'Changes': [
                     {
                         'Action': record_action,
                         'ResourceRecordSet': {
                             'Name': record_name,
+                            'TTL': 60,
                             'Type': record_type,
-
-                            'AliasTarget': {
-                                'HostedZoneId': zone_name,
-                                'DNSName': dns_name,
-                                'EvaluateTargetHealth': False
-                            }
+                            'ResourceRecords': [
+                                {
+                                    'Value': dns_value,
+                                },
+                            ],
                         }
                     }
                 ]
             }
     )
+    head_line = "Done"
+    status = "Complete"
+
+    print(manage_record_message.format(head_line, status))
+
+
 
 
 def manager(user_id):
     time.sleep(1)
-    client = boto3.client("Route53", 'us-east-1')
+    client = boto3.client("route53", 'us-east-1')
     controls_message = """
 ==================================================
         Route53 Manager v1.0 
 ==================================================
          Select:
-        [C] - Create DNS zone
-        [S] - Create DNS records
-        [M] - Manage DNS records
-        [D] - Delete DNS records"""
+        [C] - Create DNS Zone
+        [M] - Make DNS Record
+        [U] - Update DNS Record (Upsert)
+        [D] - Delete DNS Record"""
     end_control_message = """
         [B] - Back to previous menu
         [Q] - Quit program
@@ -149,29 +204,38 @@ Press a key to continue...
     print(controls_message)
     while 1:
         if keyboard.is_pressed('c'):
-            create_zones(client)
+            zone_id = create_zones(client)
             time.sleep(1)
+            add_tags_to_zone(client,zone_id,cli_tags)
+            manager(user_id)
             return
-        elif keyboard.is_pressed('s'):
-            manage_dns_record(client,'create')
+        elif keyboard.is_pressed('M'):
+            manage_dns_record(client,'CREATE')
             time.sleep(1)
+            manager(user_id)
             return
-        elif keyboard.is_pressed('m'):
-            manage_dns_record(client,"manage")
+        elif keyboard.is_pressed('u'):
+            manage_dns_record(client,"UPSERT")
             time.sleep(1)
+            manager(user_id)
             return
         elif keyboard.is_pressed('d'):
-            manage_dns_record(client,"delete")
+            manage_dns_record(client,"DELETE")
             time.sleep(1)
+            manager(user_id)
             return
         elif keyboard.is_pressed('r') and user_id == "admin":
             delete_zones(client)
             time.sleep(1)
+            manager(user_id)
             return
         elif keyboard.is_pressed('b'):
             time.sleep(1)
             return True
         elif keyboard.is_pressed('q'):
-            quit("\nThank you for using Tomer AWS resource manager!")
+            utilities.do_quit()
 
-
+client = boto3.client("route53", 'us-east-1')
+manager("admin")
+# get_zones(client)
+# delete_zones(client)

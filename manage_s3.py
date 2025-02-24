@@ -20,7 +20,7 @@ def get_buckets(client):
 def print_buckets(client):
     print(get_buckets(client))
 
-def pick_bucket(buckets):
+def get_bucket(buckets):
     max_buckets = 9
     count = 0
     if len(buckets) == 0 :
@@ -174,7 +174,7 @@ def create_bucket(client):
 
 def upload_file(client):
     """ upload a file to s3"""
-    bucket = pick_bucket(get_buckets(client))
+    bucket = utilities.pick_resource(get_buckets(client))
     if bucket == -1:
         manager("")
         return
@@ -208,7 +208,7 @@ def upload_file(client):
 
 def delete_file(client):
     """ terminate a file from s3 bucket"""
-    bucket = pick_bucket(get_buckets(client))
+    bucket = utilities.pick_resource(get_buckets(client))
     if bucket == -1 :
         manager("")
         return
@@ -238,7 +238,7 @@ def delete_file(client):
 
 def delete_bucket(client):
     """ terminate a s3 bucket"""
-    bucket = pick_bucket(get_buckets(client))
+    bucket = utilities.pick_resource(get_buckets(client))
     if bucket == -1:
         manager("")
         return
@@ -314,27 +314,32 @@ Press a key to continue...
         if keyboard.is_pressed('c'):
             create_bucket(client)
             time.sleep(1)
+            manager(user_id)
             return
         elif keyboard.is_pressed('u'):
             upload_file(client)
             time.sleep(1)
+            manager(user_id)
             return
         elif keyboard.is_pressed('d') and user_id == "admin":
             delete_bucket(client)
             time.sleep(1)
+            manager(user_id)
             return
         elif keyboard.is_pressed('r') and user_id == "admin":
             delete_file(client)
             time.sleep(1)
+            manager(user_id)
             return
         elif keyboard.is_pressed('l'):
             print_buckets(client)
             time.sleep(1)
+            manager(user_id)
             return
         elif keyboard.is_pressed('b'):
             time.sleep(1)
             return True
         elif keyboard.is_pressed('q'):
-            quit("\nThank you for using Tomer AWS resource manager!")
+           utilities.do_quit()
 
 

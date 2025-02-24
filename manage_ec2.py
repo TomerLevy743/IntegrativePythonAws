@@ -86,12 +86,6 @@ def get_instance_config(ec2):
 def create_instance():
 
     ec2 = boto3.resource('ec2', region_name='us-east-1')
-    client = boto3.client('ec2', region_name='us-east-1')
-    max_running = 2
-    if len(get_instances(client, [state_running])) >= max_running:
-        print("\nYou cant create more instances while"
-              " we already have two running!")
-        return
 
     instance_config = get_instance_config(ec2)
     print(f"""
@@ -170,56 +164,51 @@ def create_instance():
     return response[0]
 
 
-def select_instance(instances):
-    max_instances = 9
-    count = 0
-    for instance in instances:
-        print("""
-         [{0}] - {1}""".format(count,instance))
-        count+=1
-        if count > max_instances:
-            break
-    while 1:
-        count = 0
-        for instance in instances:
-            if keyboard.is_pressed(str(count)):
-                return instance
-            count += 1
+# def utilities.pick_resource(instances):
+#     max_instances = 9
+#     count = 0
+#     for instance in instances:
+#         print("""
+#          [{0}] - {1}""".format(count,instance))
+#         count+=1
+#         if count > max_instances:
+#             break
+#     while 1:
+#         count = 0
+#         for instance in instances:
+#             if keyboard.is_pressed(str(count)):
+#                 return instance
+#             count += 1
 
 
-def start_instance():
-    client = boto3.client('ec2', region_name='us-east-1')
 
-    instance =select_instance(get_instances(client,[state_paused]))
+def manage_instance(client, action):
 
-    response = client.start_instances(
-         InstanceIds=[instance]
-     )
-    print("{} started".format(instance))
-def pause_instance():
-    client = boto3.client('ec2', region_name='us-east-1')
+    actions = {
+        'terminate':{
+            "func": client.terminate_instance,
+            'states': [state_paused, state_running],
+            "message": "{} terminated"
+        },
+        'pause':{
+        "func": client.stop_instances,
+            "states":[ state_paused],
+            "message": "{} paused"
+        },
+        'start':{
+        "func": client.start_instances,
+            "states":[state_running],
+            "message": "{} started"
+        }
+    }
 
-    instance =select_instance(get_instances(client,[state_running]))
-
-    response = client.stop_instances(
-         InstanceIds=[instance]
-    )
-    print("{} paused".format(instance))
-def terminated_instance():
-    client = boto3.client('ec2', region_name='us-east-1')
-
-    instance = select_instance(get_instances(client, [state_running
-        ,state_paused]))
-    response = client.terminate_instances(
-         InstanceIds=[instance]
-    )
-    print("{} terminated".format(instance))
+    instance = utilities.pick_resource(get_instances(client,actions[action]["states"]))
+    response = actions[action]["func"](InstanceIds=[instance])
+    print(actions[action]["message"].format(instance))
 
 
-def list_instances():
-    client = boto3.client('ec2', region_name='us-east-1')
-
-    print(get_instances(client,[state_running,state_paused]))
+def list_instances(client):
+        print(get_instances(client,[state_running,state_paused]))
 
 
 def manager(user_id):
@@ -245,35 +234,50 @@ Press a key to continue...
     if user_id == "admin":
         controls_message+= """
         [D] - Delete instance"""
-
+    max_instances_message = ("\nYou cant create more instances while "
+                             "we already have two running!")
+    client = boto3.client('ec2', region_name='us-east-1')
     controls_message += end_control_message
-
+    max_running = 2
     print(controls_message)
     while 1:
         if keyboard.is_pressed('c'):
+            if len(get_instances(client, [state_running])) >= max_running:
+                print(max_instances_message)
+                continue
+
             create_instance()
             time.sleep(1)
+            manager(user_id)
             return
         elif keyboard.is_pressed('s'):
-            start_instance()
+            if len(get_instances(client, [state_running])) >= max_running:
+                print(max_instances_message)
+                continue
+
+            manage_instance(client,"start")
             time.sleep(1)
+            manager(user_id)
             return
         elif keyboard.is_pressed('p'):
-            pause_instance()
+            manage_instance(client, "pause")
             time.sleep(1)
+            manager(user_id)
             return
         elif keyboard.is_pressed('d') and user_id == "admin":
-            terminated_instance()
+            manage_instance(client, "terminate")
             time.sleep(1)
+            manager(user_id)
             return
         elif keyboard.is_pressed('l'):
-            list_instances()
+            list_instances(client)
             time.sleep(1)
+            manager(user_id)
             return
         elif keyboard.is_pressed('b'):
             time.sleep(1)
             return True
         elif keyboard.is_pressed('q'):
-            quit("\nThank you for using Tomer AWS resource manager!")
+            utilities.do_quit()
 
 
