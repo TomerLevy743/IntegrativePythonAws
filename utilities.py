@@ -30,17 +30,22 @@ def pick_resource(resource_list):
                 if keyboard.is_pressed('b'):
                     return -1
                 count += 1
+def get_key():
+    return "Key"
+def get_value():
+    return "Value"
+
 
 
 def cli_tags():
     return [
         {
-            'Key': 'by',
-            'Value': 'tomer-cli'
+            get_key(): 'by',
+            get_value(): 'tomer-cli'
         },
         {
-            'Key': 'Owner',
-            'Value': 'tomerlevy'
+            get_key(): 'Owner',
+            get_value(): 'tomerlevy'
         }
     ]
 def filter_by_tags(resource_tags):

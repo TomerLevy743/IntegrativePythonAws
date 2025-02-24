@@ -5,7 +5,7 @@ import keyboard
 import utilities
 
 
-
+#todo: add logs for errors
 def add_tags_to_zone(client, zone_id,tags):
     client.change_tags_for_resource(
             ResourceType='hostedzone',
@@ -85,7 +85,6 @@ def get_zones(client):
 
 
 def delete_zones(client):
-    """TODO: delete zones for admin only"""
     zones = get_zones(client)
     zone_id = utilities.pick_resource(zones)
     if zone_id == -1:

@@ -6,11 +6,32 @@ import keyboard
 import config_importer
 import utilities
 
+#todo: add logs for errors
 state_running="running"
 state_paused="paused"
 
-def get_instances(client,state):
+
+def ec2_cli_tags():
     tags = utilities.cli_tags()
+    key = utilities.get_key()
+    value = utilities.get_value()
+    return [
+        {
+            'Name': f'tag:{tags[0][key]}',
+            'Values': [
+                tags[0][value]
+            ]
+        },
+        {
+            'Name': f'tag:{tags[1][key]}',
+            'Values': [
+                tags[1][value]
+            ]
+        }
+
+    ]
+def get_instances(client,state):
+    tags = ec2_cli_tags()
     tags.append({'Name': 'instance-state-name','Values':state})
     response =client.describe_instances(
         Filters=tags
@@ -78,7 +99,6 @@ def get_instance_config(ec2):
 
     return instance_config
 
-# todo: add function to request for input (AMI and instance type)
 def create_instance():
 
     ec2 = boto3.resource('ec2', region_name='us-east-1')
@@ -152,7 +172,7 @@ def manage_instance(client, action):
 
     actions = {
         'terminate':{
-            "func": client.terminate_instance,
+            "func": client.terminate_instances,
             'states': [state_paused, state_running],
             "message": "{} terminated"
         },
@@ -184,8 +204,7 @@ def manager(user_id):
         EC2 Manager v1.0 
 ==================================================
          Select:
-        [C] - Create instance
-         
+        [C] - Create instance  
         [S] - Start instance
         [P] - Pause instance"""
     end_control_message = """

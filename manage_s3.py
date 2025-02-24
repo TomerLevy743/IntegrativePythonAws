@@ -186,7 +186,6 @@ def upload_file(client):
     file_path = input("Enter the path file you want to upload. ")
     file_name = input("Enter the name you want the file to have")
     response = client.upload_file(Filename=file_path,Bucket=bucket,Key=file_name)
-    #TODO: file uploaded message
     print(f"""
 ==================================================
         AWS S3 File Upload Successful!
@@ -218,7 +217,6 @@ def delete_file(client):
     utilities.flush_input()
     file_name = input("Enter the name you want the file to delete")
     response = client.delete_object(Bucket=bucket,Key=file_name)
-    #TODO: file terminated message
     print(f"""
 ==================================================
         AWS S3 File Deletion Completed!
@@ -244,7 +242,6 @@ def delete_bucket(client):
     if bucket == -1:
         
         return
-    #TODO: add bucket deletion started
     print("""
 ==================================================
         Deleting AWS S3 Bucket... Please Wait
@@ -265,7 +262,6 @@ def delete_bucket(client):
 ==================================================
     """.format(bucket))
     response = client.delete_bucket(Bucket=bucket)
-    #TODO: add bucket deletion complete
     print("""
 ==================================================
         AWS S3 Bucket Deleted Successfully!
@@ -283,7 +279,6 @@ def delete_bucket(client):
 ==================================================
 """.format(bucket))
 
-#TODO: create CLI interface for s3
 
 
 
