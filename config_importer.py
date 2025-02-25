@@ -6,6 +6,7 @@ def split_line_to_values(line, char):
         return [value1,value2]
 
 
+
 def import_data(config, file):
     config_file = open(file,"r")
 

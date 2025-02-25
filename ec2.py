@@ -8,7 +8,7 @@ import utilities
 
 #todo: add logs for errors
 state_running="running"
-state_paused="paused"
+state_paused="stopped"
 
 
 def ec2_cli_tags():
@@ -41,11 +41,13 @@ def get_instances(client,state):
         for instance in reservation['Instances']:
             temp = {"Id": instance['InstanceId']}
             for tag in instance['Tags']:
-                if f'tag:{utilities.get_key()}' == tag[utilities.get_key()]:
+                key = 'Name'
+                if key == tag[utilities.get_key()]:
                     name = tag[utilities.get_value()]
                     index = name.find(':')+1
-                    temp["Name"] = name[index:]
+                    temp[key] = name[index:]
                     instances.append(temp)
+                    break
 
 
     return instances
@@ -142,7 +144,6 @@ def create_instance(ec2_config = ""):
             NetworkInterfaces=[
                 {
                     'AssociatePublicIpAddress': True,
-                        'DeleteOnTermination': True,
                     'Description': 'string',
                     'DeviceIndex': 0,
                     'SubnetId': 'subnet-032dba4d76776a812',
@@ -160,9 +161,11 @@ def create_instance(ec2_config = ""):
         - Status: Running  
 
          Instance is now active and ready for use.  
-         Use SSH or AWS Console to connect. """
+         Use SSH or AWS Console to connect.
+         
+(Press [Enter] To Continue...)"""
 
-    utilities.message_template(header,body)
+    utilities.print_and_confirm(header,body)
     return response[0]
 
 
@@ -176,40 +179,45 @@ def manage_instance(client, action):
         },
         'pause':{
         "func": client.stop_instances,
-            "states":[ state_paused],
+            "states":[ state_running],
             "message": "Pausing..."
         },
         'start':{
         "func": client.start_instances,
-            "states":[state_running],
+            "states":[state_paused],
             "message": "Running..."
         }
     }
 
     header = "EC2 Manager v1.0"
     instance = utilities.pick_resource(get_instances(client,actions[action]["states"]), instance_message)
-
+    if instance == -1 :
+        print("No Instances were found")
+        return
     response = actions[action]["func"](InstanceIds=[instance["Id"]])
     body = f"""- Name: {instance['Name']}
         - Id: {instance['Id']}
-        - State: {actions[action]['message']}"""
-    utilities.message_template(header,body)
-
+        - State: {actions[action]['message']}
+         
+(Press [Enter] To Continue...)"""
+    utilities.print_and_confirm(header,body)
 
 def list_instances(client):
-        instances =get_instances(client,[state_running,state_paused])
+        instances =get_instances(client,['pending' , 'running' , 'shutting-down' , 'terminated' , 'stopping' , 'stopped'])
         header = "      EC2 instance list"
-        body = ""
+        body = "\n"
+
         for instance in instances:
             body += instance_message(instance)
+        body += """         
+(Press [Enter] To Continue...)"""
+        utilities.print_and_confirm(header,body)
 
-        utilities.message_template(header,body)
 
 def instance_message(instance, prefix=""):
     return f"       {prefix}Id = {instance['Id']} , Name = {instance['Name']} \n"
 
 def manager(user_id):
-    time.sleep(1)
     header = "        EC2 Manager v1.0"
     body = """Select:
         [C] - Create instance  
@@ -227,7 +235,7 @@ def manager(user_id):
 Press a key to continue..."""
 
 
-    max_instances_message = ("\nYou cant create more instances while "
+    max_instances_message = ("\nYou cant {0} more instances while "
                              "we already have two running!")
     client = boto3.client('ec2', region_name='us-east-1')
 
@@ -236,14 +244,14 @@ Press a key to continue..."""
     while 1:
         if keyboard.is_pressed('c'):
             if len(get_instances(client, [state_running])) >= max_running:
-                print(max_instances_message)
+                print(max_instances_message.format("create"))
                 continue
 
             create_instance()
             break
         elif keyboard.is_pressed('s'):
             if len(get_instances(client, [state_running])) >= max_running:
-                print(max_instances_message)
+                print(max_instances_message.format("start"))
                 continue
 
             manage_instance(client,"start")
@@ -265,3 +273,6 @@ Press a key to continue..."""
 
     time.sleep(1)
     manager(user_id)
+
+# client = boto3.client('ec2', region_name='us-east-1')
+# manager("admin")

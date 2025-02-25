@@ -43,13 +43,15 @@ def create_zones(client):
 
     #print output
     header ="        Route 53 Hosted Zone Created Successfully!"
-    body = """- Status: Hosted Zone Creation Complete ✅  
+    body = """- Status: Hosted Zone Creation Complete  
         - DNS configuration is now active.  
         - You can manage DNS records from the AWS Route 53 Console.  
         - Ensure to update your domain registrar with the new name servers.  
 
-         Hosted zone is now ready for use."""
-    print(utilities.message_template(header,body))
+         Hosted zone is now ready for use.  
+                
+(Press [Enter] To Continue...)"""
+    utilities.print_and_confirm(header,body)
     return extract_id(zone_id)
 
 
@@ -105,6 +107,9 @@ def delete_zones(client,zone):
     progress_message = """The hosted zone has been deleted from AWS Route 53.  
             Thank you for using the AWS Resource Manager!"""
 
+    body += """         
+(Press [Enter] To Continue...)
+    """
     body = body.format(status_message,progress_message)
     utilities.message_template(header,body)
 
@@ -155,7 +160,11 @@ def manage_dns_record(client, zone, record_action="CREATE", record_config =""):
 
     head_line = "Done"
     status = "Complete"
+    body += """         
+(Press [Enter] To Continue...)
+    """
     utilities.message_template(header.format(head_line),body.format(status))
+    utilities.wait_for_enter()
 
 
 def manager(user_id):

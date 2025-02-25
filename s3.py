@@ -18,11 +18,11 @@ def get_buckets(client):
     tagged_buckets= []
     for bucket in response['Buckets']:
         tags =  client.get_bucket_tagging(Bucket=bucket['Name'])['TagSet']
-        print(tags)
+        # print(tags)
 
         if utilities.filter_by_tags(tags):
             temp = {'Name':bucket["Name"],'Prefix':response["Prefix"]}
-            tagged_buckets.append(bucket['Name'])
+            tagged_buckets.append(temp)
 
     return tagged_buckets
 
@@ -31,14 +31,16 @@ def bucket_message(bucket, prefix=""):
     return f"       {prefix}Prefix = {bucket['Prefix']} , Name = {bucket["Name"]} \n"
 
 
-def list_buckets(client):
+def list_cli_buckets(client):
     buckets = get_buckets(client)
     header ="S3 Bucket list"
-    body = ""
+    body = "\n"
+
     for bucket in buckets:
        body += bucket_message(bucket)
 
-    utilities.message_template(header,body)
+    body += "(Press [Enter] To Continue...)"
+    utilities.print_and_confirm(header,body)
 
 
 
@@ -59,18 +61,19 @@ def get_access_level(header):
     while 1:
         if keyboard.is_pressed('1'): #
             time.sleep(1)
-
             return "private"
+
         elif keyboard.is_pressed('2'): #
-            utilities.message_template(header,confirmation_message)
             time.sleep(1)
-            print(confirmation_message)
+            utilities.message_template(header,confirmation_message)
             while 1:
                 if keyboard.is_pressed('y'):
 
                     return 'public-read-write'
                 elif keyboard.is_pressed('n'):
-                    return get_access_level(header)
+                    utilities.message_template(header,info_message)
+                    break
+
         elif keyboard.is_pressed('b'):
                 return -1
 
@@ -80,7 +83,7 @@ def change_bucket_access_level(client, bucket_name, access_level):
     if access_level == 'private':
         flag = True
 
-    print(bucket_name)
+    # print(bucket_name)
     response = client.put_public_access_block(
             Bucket= bucket_name,
             PublicAccessBlockConfiguration={
@@ -156,8 +159,10 @@ def create_bucket(client):
          You can now upload, download, and manage files.  
 
          Check AWS Console for more details.
+         
+(Press [Enter] To Continue...)
     """
-    utilities.message_template(header,body)
+    utilities.print_and_confirm(header,body)
 
 def manage_bucket(client,func):
     bucket = utilities.pick_resource(get_buckets(client), bucket_message)
@@ -173,9 +178,9 @@ def upload_file(client,bucket,file_path="",file_name=""):
         file_path = input("Enter the path file you want to upload > ")
         file_name = input("Enter the name you want the file to have > ")
 
-    response = client.upload_file(Filename=file_path,Bucket=bucket,Key=file_name)
+    response = client.upload_file(Filename=file_path,Bucket=bucket['Name'],Key=file_name)
     header = "        AWS S3 File Upload Successful!"
-    body = f"""- Bucket Name: {bucket}   
+    body = f"""- Bucket Name: {bucket['Name']}   
         - Local File Path: {file_path}  
         - S3 File Name: {file_name}  
         - Region: us-east-1  
@@ -187,9 +192,8 @@ def upload_file(client,bucket,file_path="",file_name=""):
 
          Verify the upload in the AWS Console if needed.
 
-    """
-    utilities.message_template(header,body)
-
+(Press [Enter] To Continue...)"""
+    utilities.print_and_confirm(header,body)
 
 
 def delete_file(client,bucket,file_name = ""):
@@ -197,27 +201,28 @@ def delete_file(client,bucket,file_name = ""):
     if file_name == "":
         file_name = input("Enter the name of the file to delete")
     header = "        AWS S3 File Deletion Completed!"
-    body = """- Bucket Name: {bucket} 
+    body = f"""- Bucket Name: {bucket['Name']} 
         - File Name: {file_name}  
         - Region: us-east-1  
-        - Status: File Deleted ✅  
+        - Status: File Deleted   
 
          The specified file has been successfully removed.  
          No further action is required.  
 
-         Verify file removal in the AWS Console if needed."""
-    response = client.delete_object(Bucket=bucket,Key=file_name)
-    utilities.message_template(header,body)
+         Verify file removal in the AWS Console if needed.
+(Press [Enter] To Continue...)"""
+    response = client.delete_object(Bucket=bucket['Name'],Key=file_name)
+    utilities.print_and_confirm(header,body)
 
 
 def delete_bucket(client,bucket):
     """ terminate a s3 bucket"""
     header = "        Deleting AWS S3 Bucket... Please Wait"
-    body = f"""- Bucket Name: {bucket["Name"]}  
+    body = """- Bucket Name: {0}  
         - Region: us-east-1  
-        - Status: {0}.  
+        - Status: {1}.  
 
-         {1}"""
+         {2}"""
     status_str = "Deletion Initiated.."
     progress_str = """Connecting to AWS...  
          Verifying bucket existence...  
@@ -227,17 +232,19 @@ def delete_bucket(client,bucket):
          Bucket deletion in progress!  
          Check AWS Console for status updates."""
 
-    utilities.message_template(header,body.format(status_str,progress_str))
+    utilities.message_template(header,body.format(bucket['Name'],status_str,progress_str))
 
-    response = client.delete_bucket(Bucket=bucket)
+    response = client.delete_bucket(Bucket=bucket['Name'])
     header ="        AWS S3 Bucket Deleted Successfully!"
     status_str = "Deletion Completed"
     progress_str = """All objects removed successfully.  
          Bucket has been deleted from your AWS account.  
 
          Verify deletion in the AWS Console for confirmation.
+         (Press [Enter] To Continue...)
     """
-    utilities.message_template(header,body.format(status_str,progress_str))
+    utilities.message_template(header,body.format(bucket['Name'],status_str,progress_str))
+    utilities.wait_for_enter()
 
 
 
@@ -266,9 +273,10 @@ def manager(user_id):
 Press a key to continue...
              """
 
-    print(utilities.message_template(header,body))
+    utilities.message_template(header,body)
     while 1:
         if keyboard.is_pressed('c'):
+
             create_bucket(client)
             break
         elif keyboard.is_pressed('u'):
@@ -281,7 +289,7 @@ Press a key to continue...
             manage_bucket(client,delete_file)
             break
         elif keyboard.is_pressed('l'):
-            list_buckets(client)
+            list_cli_buckets(client)
             break
         elif keyboard.is_pressed('b'):
             time.sleep(1)
@@ -291,5 +299,6 @@ Press a key to continue...
 
     time.sleep(1)
     manager(user_id)
+
 
 # manager("admin")

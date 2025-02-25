@@ -1,4 +1,6 @@
 import os
+import time
+
 import keyboard
 
 
@@ -6,18 +8,18 @@ def clear_terminal():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 def flush_input():
-    input(keyboard.press_and_release("enter"))
+    input(keyboard.press_and_release('enter'))
 
 def pick_resource(resource_list, print_template):
         header = "      Pick a resource to operate on:"
         max_resources = 9
         count = 0
-        body = ""
+        body = "\n"
         if len(resource_list) == 0:
             return -1
 
         for resource in resource_list:
-            prefix = f"{count} - "
+            prefix = f"[{count}] - "
             body +=print_template(resource, prefix)
             count += 1
             if max_resources > 9:
@@ -39,7 +41,11 @@ def get_key():
 def get_value():
     return "Value"
 
+def wait_for_enter():
 
+    while 1:
+        if keyboard.is_pressed('enter'):
+            return
 
 def cli_tags():
     return [
@@ -48,7 +54,7 @@ def cli_tags():
             get_value(): 'tomer-cli'
         },
         {
-            get_key(): 'Owner',
+            get_key(): 'owner',
             get_value(): 'tomerlevy'
         }
     ]
@@ -75,14 +81,18 @@ def message_template(header, body="",flush=True):
 {line}"""
     if not body == "":
         message +=f"""
-            {body}
+        {body}
 {line}
 """
-
-    clear_terminal()
     if flush:
         flush_input()
+    clear_terminal()
+    time.sleep(1)
     print(message)
+
+def print_and_confirm(header,body):
+    message_template(header,body)
+    wait_for_enter()
 
 def do_quit():
     """Exit the CLI."""
@@ -94,6 +104,7 @@ def do_quit():
 
         - Your session has ended.  
         - We hope the resources were helpful.  
+        
         - If you need further assistance, don't hesitate to reach out.  
 
         - Have a great day and happy cloud managing!  
