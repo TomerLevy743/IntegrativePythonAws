@@ -151,7 +151,8 @@ def validate_ip():
 
 def manage_dns_record(client, zone, record_action="CREATE", record_config =""):
     if record_config == "":
-        record_config = {"Name": f"{input("\nName > ")}.{zone['Name']}",
+        name = input("\nName > ")
+        record_config = {"Name": f"{name}.{zone['Name']}",
                          'Type': 'A', 'DNS': validate_ip()}
 
     # create a string from record action that will be used for message
