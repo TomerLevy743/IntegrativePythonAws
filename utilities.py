@@ -87,7 +87,7 @@ def message_template(header, body="",flush=True):
     if flush:
         flush_input()
     clear_terminal()
-    time.sleep(1)
+    time.sleep(0.3)
     print(message)
 
 def print_and_confirm(header,body):

@@ -46,8 +46,7 @@ def do_intro_screen():
         sync_result = sync_failed
         exit(aws_credentials_not_found)
 
-    body.format(sync_result)
-    utilities.message_template(header,body)
+    utilities.message_template(header,body.format(sync_result))
     time.sleep(2)
 
 def do_input_manager(user):
@@ -65,7 +64,6 @@ Press a key to continue..."""
     while 1:
         if keyboard.is_pressed('1'):  # ec2
             ec2.manager(user)
-
             break
         elif keyboard.is_pressed('2'):  # s3
             s3.manager(user)
@@ -76,6 +74,7 @@ Press a key to continue..."""
             break
         elif keyboard.is_pressed('q'):
             utilities.do_quit()
+
     do_input_manager(user)
 
 

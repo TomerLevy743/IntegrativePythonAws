@@ -63,11 +63,11 @@ def get_instance_type(instance_config,header):
     while 1:
         if keyboard.is_pressed('1'): #
             instance_config["instance-type"] = "t3.nano"
-            time.sleep(1)
+            time.sleep(0.4)
             return instance_config
         if keyboard.is_pressed('2'): #
             instance_config["instance-type"] = "t4g.nano"
-            time.sleep(1)
+            time.sleep(0.4)
             return instance_config
 
 def get_image_id(instance_config,header):
@@ -85,12 +85,12 @@ def get_image_id(instance_config,header):
         if keyboard.is_pressed('1'):  #
             instance_config["image-id"] = instance_config["amazon-"
                                                           + architecture]
-            time.sleep(1)
+            time.sleep(0.4)
             return instance_config
         if keyboard.is_pressed('2'):  #
             instance_config["image-id"] = instance_config["ubuntu-"
                                                           + architecture]
-            time.sleep(1)
+            time.sleep(0.4)
             return instance_config
 
 
@@ -241,6 +241,7 @@ Press a key to continue..."""
 
     max_running = 2
     utilities.message_template(header,body)
+    time.sleep(0.5)
     while 1:
         if keyboard.is_pressed('c'):
             if len(get_instances(client, [state_running])) >= max_running:
@@ -266,12 +267,12 @@ Press a key to continue..."""
             list_instances(client)
             break
         elif keyboard.is_pressed('b'):
-            time.sleep(1)
+            time.sleep(0.5)
             return True
         elif keyboard.is_pressed('q'):
             utilities.do_quit()
 
-    time.sleep(1)
+    time.sleep(0.5)
     manager(user_id)
 
 # client = boto3.client('ec2', region_name='us-east-1')

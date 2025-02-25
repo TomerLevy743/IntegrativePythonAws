@@ -1,3 +1,4 @@
+import ipaddress
 import time
 from datetime import datetime
 import boto3
@@ -5,7 +6,6 @@ import keyboard
 import utilities
 
 
-#todo: add logs for errors
 def add_tags_to_zone(client, zone_id,tags):
     client.change_tags_for_resource(
             ResourceType='hostedzone',
@@ -18,12 +18,28 @@ def extract_id(zone_id):
     id_index = zone_id.find("/", 1)
     return zone_id[id_index + 1:]
 
+def validate_domain():
+    # Regular expression for validating domain names
+    pattern = re.compile(
+        r'^(?:[a-zA-Z0-9]'            # First character of the domain
+        r'(?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+'  # Subdomain + hostname
+        r'[a-zA-Z]{2,}$'              # Top-level domain (TLD)
+    )
+
+    while 1:
+        domain =input("Enter a domain >")
+        if pattern.match(domain):
+            return domain
+        else:
+            print(f" '{domain}' is not a valid domain. please enter a valid domain")
 
 def create_zones(client):
     utilities.flush_input()
-    zone_name = input("\nChoose a name for your zone > ")
-    #print create start
-    header = "        Creating Route 53 Hosted Zone... Please Wait"
+    header = "        Creating Route 53 Hosted Zone..."
+
+    utilities.message_template(header)
+    zone_name = validate_domain()
+
     body = """
         - Status: Initializing Hosted Zone Creation  
         - Verifying domain configuration...  
@@ -32,9 +48,9 @@ def create_zones(client):
 
          Please wait while AWS Route 53 sets up your hosted zone."""
 
-    print(utilities.message_template(header,body))
-    now = datetime.now()
+    utilities.message_template(header,body)
 
+    now = datetime.now()
     current_time = now.strftime("%H:%M:%S")
     response = client.create_hosted_zone(Name=zone_name,CallerReference=current_time)
     # add tags to the zone
@@ -76,11 +92,14 @@ def get_zones(client):
 def print_zone(zone,prefix=""):
     return f"       {prefix}Id = {zone['Id']} , Name = {zone['Name']}\n"
 
-def pick_zone(client):
+def pick_zone(client,header):
+    body = "Fetching zones please wait..."
+    utilities.message_template(header,body)
     zones = get_zones(client)
     zone = utilities.pick_resource(zones, print_zone)
     if zone == -1:
-        return
+        print("Need to create a hosted zone first!")
+        return zone
     utilities.flush_input()
     return zone
 
@@ -92,6 +111,7 @@ def delete_zones(client,zone):
 
          {2}"""
     status_message = "Deletion in Progress...  "
+
     progress_message = """Verifying hosted zone ownership...  
          Initiating hosted zone deletion...  
 
@@ -111,14 +131,28 @@ def delete_zones(client,zone):
 (Press [Enter] To Continue...)
     """
     body = body.format(status_message,progress_message)
-    utilities.message_template(header,body)
+    utilities.print_and_confirm(header,body)
+
+import re
 
 
+
+def validate_ip():
+    while 1:
+        ip = input("Value > ")
+        try:
+            # Validate the IP address (IPv4 or IPv6)
+            ip_obj = ipaddress.ip_address(ip)
+            print(f"'{ip}' is a valid {ip_obj.version}-bit IP address.")
+            return ip
+        except ValueError:
+            print(f" '{ip}' is not a valid IP address. enter a valid ip")
+            return ip
 
 def manage_dns_record(client, zone, record_action="CREATE", record_config =""):
     if record_config == "":
         record_config = {"Name": f"{input("\nName > ")}.{zone['Name']}",
-                         'Type': 'A', 'DNS': input("Value > ")}
+                         'Type': 'A', 'DNS': validate_ip()}
 
     # create a string from record action that will be used for message
     action_name = record_action[0] + record_action[1:-1].lower() + "ing"
@@ -163,12 +197,10 @@ def manage_dns_record(client, zone, record_action="CREATE", record_config =""):
     body += """         
 (Press [Enter] To Continue...)
     """
-    utilities.message_template(header.format(head_line),body.format(status))
-    utilities.wait_for_enter()
+    utilities.print_and_confirm(header,body)
 
 
 def manager(user_id):
-    time.sleep(1)
     client = boto3.client("route53", 'us-east-1')
     header = "        Route53 Manager v1.0"
     body = """Select:
@@ -190,32 +222,36 @@ Press a key to continue..."""
     while 1:
         if keyboard.is_pressed('c'):
             zone_id = create_zones(client)
-            time.sleep(1)
+            time.sleep(0.5)
             add_tags_to_zone(client,zone_id,utilities.cli_tags())
             break
         elif keyboard.is_pressed('m'):
-            zone = pick_zone(client)
-            manage_dns_record(client, zone,'CREATE')
+            zone = pick_zone(client,header)
+            if not zone == -1 :
+                manage_dns_record(client, zone,'CREATE')
             break
         elif keyboard.is_pressed('u'):
-            zone = pick_zone(client)
-            manage_dns_record(client, zone,"UPSERT")
+            zone = pick_zone(client,header)
+            if not zone == -1:
+                manage_dns_record(client, zone,"UPSERT")
             break
         elif keyboard.is_pressed('d'):
-            zone = pick_zone(client)
-            manage_dns_record(client, zone,"DELETE")
+            zone = pick_zone(client,header)
+            if not zone == -1:
+                manage_dns_record(client, zone,"DELETE")
             break
         elif keyboard.is_pressed('r') and user_id == "admin":
-            zone = pick_zone(client)
-            delete_zones(client,zone)
+            zone = pick_zone(client,header)
+            if not zone == -1:
+                delete_zones(client,zone)
             break
         elif keyboard.is_pressed('b'):
-            time.sleep(1)
+            time.sleep(0.5)
             return True
         elif keyboard.is_pressed('q'):
             utilities.do_quit()
 
-    time.sleep(1)
+    time.sleep(0.5)
     manager(user_id)
 
 # client = boto3.client("route53", 'us-east-1')

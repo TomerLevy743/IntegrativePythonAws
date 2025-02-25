@@ -60,11 +60,11 @@ def get_access_level(header):
 
     while 1:
         if keyboard.is_pressed('1'): #
-            time.sleep(1)
+            time.sleep(0.5)
             return "private"
 
         elif keyboard.is_pressed('2'): #
-            time.sleep(1)
+            time.sleep(0.5)
             utilities.message_template(header,confirmation_message)
             while 1:
                 if keyboard.is_pressed('y'):
@@ -119,12 +119,35 @@ def add_tags_to_bucket(client, bucket):
     client.put_bucket_tagging(Bucket=bucket,
                               Tagging= {'TagSet':utilities.cli_tags()} )
 
+import re
+
+def validate_s3_bucket_name():
+    # Check length
+
+    # Regex for valid S3 bucket name
+    pattern = re.compile(r'^(?!\d{1,3}(\.\d{1,3}){3}$)([a-z0-9]([a-z0-9\-.]{1,61}[a-z0-9])?)$')
+    while 1:
+        bucket_name = input("Enter the bucket name > ")
+        if len(bucket_name) < 3 or len(bucket_name) > 63:
+            print(" Bucket name must be between 3 and 63 characters.")
+            return False
+
+    # Validate against the regex pattern
+        if pattern.match(bucket_name):
+            if '..' in bucket_name:
+                print(" Bucket name cannot contain consecutive periods ('..').")
+                continue
+            print(f" '{bucket_name}' is a valid S3 bucket name.")
+            return bucket_name
+        else:
+            print(f" '{bucket_name}' is not a valid S3 bucket name.")
+            continue
 
 def create_bucket(client):
     """ Create a S3 bucket """
     header ="        Creating AWS S3 Bucket... "
     utilities.message_template(header)
-    bucket_name = bucket_prefix + input("\nChoose a name for your bucket > ")
+    bucket_name = bucket_prefix + validate_s3_bucket_name()
 
     access_level = get_access_level(header)
     if access_level == -1:
@@ -252,7 +275,6 @@ def delete_bucket(client,bucket):
 def manager(user_id):
     utilities.clear_terminal()
     client = boto3.client('s3', 'us-east-1')
-    time.sleep(1)
     header = "        S3 Manager v1.0"
     body = """
          Select:
@@ -274,6 +296,7 @@ Press a key to continue...
              """
 
     utilities.message_template(header,body)
+    time.sleep(0.5)
     while 1:
         if keyboard.is_pressed('c'):
 
@@ -292,12 +315,12 @@ Press a key to continue...
             list_cli_buckets(client)
             break
         elif keyboard.is_pressed('b'):
-            time.sleep(1)
+            time.sleep(0.4)
             return
         elif keyboard.is_pressed('q'):
            utilities.do_quit()
 
-    time.sleep(1)
+    time.sleep(0.4)
     manager(user_id)
 
 
