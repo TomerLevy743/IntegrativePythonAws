@@ -1,14 +1,14 @@
 # AWS Resource Manager CLI
 
-A Python-based command-line tool to manage AWS resources seamlessly using **boto3**. This tool allows you to create and delete S3 buckets, manage EC2 instances, validate IP addresses, and handle DNS records with ease.
+A Python-based command-line tool to manage AWS resources seamlessly using **boto3**. This tool allows you to manage your EC2, S3, and Route53 needs!
 
 ## 🚀 Features
 
 - ✅ Create and delete **S3 Buckets**
-- ✅ Manage **EC2 Instances**
-- ✅ Validate IP addresses and domain names
-- ✅ Manage **DNS records** with AWS Route 53
 - ✅ Upload and delete files in S3
+- ✅ Manage **EC2 Instances**
+- ✅ Create **Hosted Zones** with AWS Route 53
+- ✅ Manage **DNS records** with AWS Route 53
 - ✅ Clear CLI messaging for better user feedback
 - ✅ Admin mode for easier testing
 
@@ -63,11 +63,7 @@ Check AWS Console for status updates.
 ==================================================
 ```
 
-## 🛠️ Functions Overview
 
-- `validate_ip(ip)`: Validates an IPv4 or IPv6 address.
-- `validate_domain(domain)`: Checks if a domain name is valid.
-- `validate_s3_bucket_name(bucket_name)`: Ensures the bucket name follows AWS naming conventions.
 
 ## ✅ Requirements
 
