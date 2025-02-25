@@ -2,8 +2,6 @@ import time
 import boto3
 import json
 import keyboard
-from pyasn1.type.useful import ObjectDescriptor
-
 import utilities
 
 bucket_prefix = "tomer-cli-"
