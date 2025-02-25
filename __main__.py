@@ -2,26 +2,19 @@ import time
 import botocore
 import boto3
 import keyboard
-import manage_ec2
-import manage_route53
-import manage_s3
+import ec2
+import route53
+import s3
 import utilities
 
 def do_login():
     """Login menu"""
-    utilities.clear_terminal()
-    login_message = """
-==================================================
-        Welcome to AWS Resource Manager v1.0 
-==================================================
+    header ="        Welcome to AWS Resource Manager v1.0"
+    body = """Please enter your name to continue:
 
-         Please enter your name to continue:
+(Press [Enter] when done...)"""
 
-         (Press [Enter] when done...)
-
-==================================================
-        """
-    print(login_message)
+    utilities.message_template(header,body,False)
     name=input(  " name > " )
 
 
@@ -33,19 +26,13 @@ def do_login():
 
 
 def do_intro_screen():
-    intro = """
-==================================================
-        AWS Resource Manager v1.0 
-==================================================
-         Manage your AWS resources with ease!
+    header = "        AWS Resource Manager v1.0 "
+    body = """Manage your AWS resources with ease!
 
          Connected to: [AWS Account: ****-****-****]
-         Syncing with AWS...  {}
+         Syncing with AWS...  {}"""
 
-==================================================
-"""
 
-    utilities.clear_terminal()
     aws_credentials_not_found = "please configure your aws credentials before proceeding"
     sync_success= "success"
     sync_result = sync_success
@@ -59,38 +46,37 @@ def do_intro_screen():
         sync_result = sync_failed
         exit(aws_credentials_not_found)
 
-    print(intro.format(sync_result))
+    body.format(sync_result)
+    utilities.message_template(header,body)
     time.sleep(2)
 
-def do_input_manager(user_id):
-    controls_message = """
-==================================================
-        AWS Resource Manager v1.0 
-==================================================
-         Choose which resource you want to manage:
+def do_input_manager(user):
+    header = "        AWS Resource Manager v1.0 "
+    body = """Choose which resource you want to manage:
         [1] - EC2 
         [2] - S3
         [3] - Route 53
         [Q] - Quit program
       
-Press a key to continue...
-==================================================
-"""
-    utilities.clear_terminal()
-    print(controls_message)
+Press a key to continue..."""
+
+    utilities.message_template(header,body)
+
     while 1:
         if keyboard.is_pressed('1'):  # ec2
-            manage_ec2.manager(user_id)
-            return
+            ec2.manager(user)
+
+            break
         elif keyboard.is_pressed('2'):  # s3
-            manage_s3.manager(user_id)
-            return
+            s3.manager(user)
+            break
         elif keyboard.is_pressed('3'):  # route53
-            manage_route53.manager(user_id)
-            return
+            (route53
+             .manager(user))
+            break
         elif keyboard.is_pressed('q'):
             utilities.do_quit()
-
+    do_input_manager(user)
 
 
 
@@ -99,17 +85,3 @@ if __name__ == '__main__':
     user_id = do_login()
     do_intro_screen()
     do_input_manager(user_id)
-    print("""
-    
-==================================================
-         Thank You for Using Tomer Resource Manager!  
-==================================================
-
-        - Your session has ended.  
-        - We hope the resources were helpful.  
-        - If you need further assistance, don't hesitate to reach out.  
-
-        - Have a great day and happy cloud managing!  
-
-==================================================
-""")

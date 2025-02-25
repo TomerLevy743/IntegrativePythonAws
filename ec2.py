@@ -36,22 +36,28 @@ def get_instances(client,state):
     response =client.describe_instances(
         Filters=tags
     )
-    instances =[]
+    instances = []
     for reservation in response['Reservations']:
         for instance in reservation['Instances']:
-            instances.append(instance['InstanceId'])
+            temp = {"Id": instance['InstanceId']}
+            for tag in instance['Tags']:
+                if f'tag:{utilities.get_key()}' == tag[utilities.get_key()]:
+                    name = tag[utilities.get_value()]
+                    index = name.find(':')+1
+                    temp["Name"] = name[index:]
+                    instances.append(temp)
+
 
     return instances
 
 
 
-def get_instance_type(instance_config):
+def get_instance_type(instance_config,header):
     info_message = """
          choose an Instance type:
         [1] - t3.nano
-        [2] - t4g.nano    
-        """
-    print(info_message)
+        [2] - t4g.nano"""
+    utilities.message_template(header,info_message)
     while 1:
         if keyboard.is_pressed('1'): #
             instance_config["instance-type"] = "t3.nano"
@@ -62,13 +68,13 @@ def get_instance_type(instance_config):
             time.sleep(1)
             return instance_config
 
-def get_image_id(instance_config,):
+def get_image_id(instance_config,header):
+
     info_message = """
          choose an Image ID:
         [1] - Amazon linux
-        [2] - Ubuntu    
-           """
-    print(info_message)
+        [2] - Ubuntu"""
+    utilities.message_template(header,info_message)
 
     instance_type = instance_config["instance-type"]
     index = instance_type.find('.')
@@ -86,32 +92,30 @@ def get_image_id(instance_config,):
             return instance_config
 
 
-def get_instance_config(ec2):
+def get_instance_config(ec2_config,header):
 
 
     file_path = "ec2_configuration"
     instance_config = {}
     instance_config = config_importer.import_data(instance_config,file_path)
     utilities.flush_input()
-    instance_config['name'] = input("\nChoose a name for your instance > ")
-    instance_config = get_instance_type(instance_config)
-    instance_config = get_image_id(instance_config,)
+    if ec2_config == "":
+        utilities.message_template(header)
+        instance_config['name'] = input("\nChoose a name for your instance > ")
+        instance_config = get_instance_type(instance_config,header)
+        instance_config = get_image_id(instance_config,header)
 
     return instance_config
 
-def create_instance():
+def create_instance(ec2_config = ""):
+    header = "        Creating AWS EC2 Instance..."
 
-    ec2 = boto3.resource('ec2', region_name='us-east-1')
+    ec2_resource = boto3.resource('ec2', region_name='us-east-1')
 
-    instance_config = get_instance_config(ec2)
+    instance_config = get_instance_config(ec2_config,header)
     tags = utilities.cli_tags()
     tags.append({'Key': 'Name','Value': instance_config["name"]})
-    print(f"""
-==================================================
-        Creating AWS EC2 Instance... Please Wait
-==================================================
-
-        - Instance Type: {instance_config['instance-type']}  
+    body = f"""- Instance Type: {instance_config['instance-type']}  
         - Region: us-east-1  
         - Status: Provisioning...  
 
@@ -120,11 +124,10 @@ def create_instance():
          Launching instance...  
 
          Instance creation in progress!  
-         Check AWS Console for status updates.
+         Check AWS Console for status updates."""
+    utilities.message_template(header,body)
 
-=================================================="""
-          )
-    response = ec2.create_instances(
+    response = ec2_resource.create_instances(
             ImageId=instance_config["image-id"],
             MinCount=1,
             MaxCount=1,
@@ -150,21 +153,16 @@ def create_instance():
                 },
             ],
     )
-    creation_complete= f"""
-==================================================
-        AWS EC2 Instance Created Successfully
-==================================================
-
-        - Instance ID: {response[0]}  
+    header = "        AWS EC2 Instance Created Successfully"
+    body = f"""- Instance ID: {response[0]}  
         - Instance Type: {instance_config["instance-type"]}  
         - Key: {instance_config["key-name"]}  
         - Status: Running  
 
          Instance is now active and ready for use.  
-         Use SSH or AWS Console to connect.  
+         Use SSH or AWS Console to connect. """
 
-=================================================="""
-    print(creation_complete)
+    utilities.message_template(header,body)
     return response[0]
 
 
@@ -174,57 +172,67 @@ def manage_instance(client, action):
         'terminate':{
             "func": client.terminate_instances,
             'states': [state_paused, state_running],
-            "message": "{} terminated"
+            "message": "Terminating..."
         },
         'pause':{
         "func": client.stop_instances,
             "states":[ state_paused],
-            "message": "{} paused"
+            "message": "Pausing..."
         },
         'start':{
         "func": client.start_instances,
             "states":[state_running],
-            "message": "{} started"
+            "message": "Running..."
         }
     }
 
-    instance = utilities.pick_resource(get_instances(client,actions[action]["states"]))
-    response = actions[action]["func"](InstanceIds=[instance])
-    print(actions[action]["message"].format(instance))
+    header = "EC2 Manager v1.0"
+    instance = utilities.pick_resource(get_instances(client,actions[action]["states"]), instance_message)
+
+    response = actions[action]["func"](InstanceIds=[instance["Id"]])
+    body = f"""- Name: {instance['Name']}
+        - Id: {instance['Id']}
+        - State: {actions[action]['message']}"""
+    utilities.message_template(header,body)
 
 
 def list_instances(client):
-        print(get_instances(client,[state_running,state_paused]))
+        instances =get_instances(client,[state_running,state_paused])
+        header = "      EC2 instance list"
+        body = ""
+        for instance in instances:
+            body += instance_message(instance)
 
+        utilities.message_template(header,body)
+
+def instance_message(instance, prefix=""):
+    return f"       {prefix}Id = {instance['Id']} , Name = {instance['Name']} \n"
 
 def manager(user_id):
     time.sleep(1)
-    controls_message = """
-==================================================
-        EC2 Manager v1.0 
-==================================================
-         Select:
+    header = "        EC2 Manager v1.0"
+    body = """Select:
         [C] - Create instance  
         [S] - Start instance
         [P] - Pause instance"""
-    end_control_message = """
+    if user_id == "admin":
+        body += """
+        [D] - Delete instance"""
+
+    body += """
         [L] - List all instances
         [B] - Back to previous menu
         [Q] - Quit program
       
-Press a key to continue...
-==================================================
-         """
+Press a key to continue..."""
 
-    if user_id == "admin":
-        controls_message+= """
-        [D] - Delete instance"""
+
     max_instances_message = ("\nYou cant create more instances while "
                              "we already have two running!")
     client = boto3.client('ec2', region_name='us-east-1')
-    controls_message += end_control_message
+
     max_running = 2
-    print(controls_message)
+    utilities.message_template(header,body)
     while 1:
         if keyboard.is_pressed('c'):
             if len(get_instances(client, [state_running])) >= max_running:
@@ -232,37 +240,28 @@ Press a key to continue...
                 continue
 
             create_instance()
-            time.sleep(1)
-            manager(user_id)
-            return
+            break
         elif keyboard.is_pressed('s'):
             if len(get_instances(client, [state_running])) >= max_running:
                 print(max_instances_message)
                 continue
 
             manage_instance(client,"start")
-            time.sleep(1)
-            manager(user_id)
-            return
+            break
         elif keyboard.is_pressed('p'):
             manage_instance(client, "pause")
-            time.sleep(1)
-            manager(user_id)
-            return
+            break
         elif keyboard.is_pressed('d') and user_id == "admin":
             manage_instance(client, "terminate")
-            time.sleep(1)
-            manager(user_id)
-            return
+            break
         elif keyboard.is_pressed('l'):
             list_instances(client)
-            time.sleep(1)
-            manager(user_id)
-            return
+            break
         elif keyboard.is_pressed('b'):
             time.sleep(1)
             return True
         elif keyboard.is_pressed('q'):
             utilities.do_quit()
 
-
+    time.sleep(1)
+    manager(user_id)

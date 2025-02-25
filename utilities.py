@@ -8,28 +8,32 @@ def clear_terminal():
 def flush_input():
     input(keyboard.press_and_release("enter"))
 
-def pick_resource(resource_list):
-        print("Pick a resource to operate on:")
+def pick_resource(resource_list, print_template):
+        header = "      Pick a resource to operate on:"
         max_resources = 9
         count = 0
-
+        body = ""
         if len(resource_list) == 0:
             return -1
+
         for resource in resource_list:
-            print("""
-                 [{0}] - {1}""".format(count, resource))
+            prefix = f"{count} - "
+            body +=print_template(resource, prefix)
             count += 1
             if max_resources > 9:
                 break
 
+        message_template(header,body)
         while 1:
             count = 0
             for resource in resource_list:
                 if keyboard.is_pressed(str(count)):
                     return resource
-                if keyboard.is_pressed('b'):
+                elif keyboard.is_pressed('b'):
                     return -1
+
                 count += 1
+
 def get_key():
     return "Key"
 def get_value():
@@ -59,6 +63,41 @@ def filter_by_tags(resource_tags):
 
 
     return False
+def get_template_line():
+    return "=================================================="
+
+
+def message_template(header, body="",flush=True):
+    line = get_template_line()
+    message = f"""
+{line}
+{header}
+{line}"""
+    if not body == "":
+        message +=f"""
+            {body}
+{line}
+"""
+
+    clear_terminal()
+    if flush:
+        flush_input()
+    print(message)
+
 def do_quit():
     """Exit the CLI."""
-    quit("\nThank you for using Tomer AWS resource manager!")
+    line = get_template_line()
+    exit_message = f"""
+{line}
+         Thank You for Using Tomer Resource Manager!  
+{line}
+
+        - Your session has ended.  
+        - We hope the resources were helpful.  
+        - If you need further assistance, don't hesitate to reach out.  
+
+        - Have a great day and happy cloud managing!  
+
+{line}
+"""
+    quit(exit_message)
