@@ -26,7 +26,7 @@ def get_buckets(client):
 
 
 def bucket_message(bucket, prefix=""):
-    return f"       {prefix}Prefix = {bucket['Prefix']} , Name = {bucket["Name"]} \n"
+    return f"       {prefix}Prefix = {bucket['Prefix']} , Name = {bucket['Name']} \n"
 
 
 def list_cli_buckets(client):
