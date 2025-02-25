@@ -17,24 +17,17 @@ A Python-based command-line tool to manage AWS resources seamlessly using **boto
 1. **Clone the repository:**
 
 ```bash
-git clone https://github.com/your-username/aws-resource-manager.git
-cd aws-resource-manager
+git clone https://github.com/TomerLevy743/IntegrativePythonAws.git
+cd IntegrativePythonAws
 ```
 
-2. **Create a virtual environment (optional but recommended):**
-
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows, use venv\Scripts\activate
-```
-
-3. **Install dependencies:**
+2. **Install dependencies:**
 
 ```bash
 pip install -r requirements.txt
 ```
 
-4. **Configure AWS credentials:**
+3. **Configure AWS credentials:**
 
 Make sure you have AWS CLI installed and configured:
 
@@ -47,33 +40,13 @@ aws configure
 ### Start the CLI
 
 ```bash
-python aws_manager.py
+python __main__.py
 ```
 
-### Sample Commands
-
-- **Create S3 Bucket:**
-  ```
-  Enter bucket name: my-unique-bucket-name
-  ```
-
-- **Delete S3 Bucket:**
-  ```
-  Deleting bucket: my-unique-bucket-name
-  ```
-
-- **Upload File to S3:**
-  ```
-  Enter file path: ./path/to/file.txt
-  Uploading to bucket: my-unique-bucket-name
-  ```
-
-- **Manage DNS Record:**
-  ```
-  Enter domain: example.com
-  Enter record type (A, CNAME, etc.): A
-  Enter IP address: 192.168.1.1
-  ```
+### Admin Mode
+ for testing 
+- username > admin
+- password > 0000
 
 ### Example Output
 
