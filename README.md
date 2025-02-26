@@ -1,3 +1,4 @@
+> Windows Only
 # AWS Resource Manager CLI
 
 A Python-based command-line tool to manage AWS resources seamlessly using **boto3**. This tool allows you to manage EC2, S3, and Route53!
